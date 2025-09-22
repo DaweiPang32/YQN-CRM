@@ -438,28 +438,47 @@ except APIError:
 
 df = read_df_cached(ws, ws_cache_key(ws))
 
-# ========= 首次进入默认落在 view，其余时候尊重 URL 参数 =========
+# ========= 首次进入仅一次：强制 view =========
 params = _get_query_params()
-
-# 会话级开关：仅首次进入时生效
 if "_visited_once" not in st.session_state:
-    st.session_state["_visited_once"] = True  # 标记已完成首次进入
-    # 首次一律落在 view，并清理残留的 tab/cid（比如上次停在 progress）
+    st.session_state["_visited_once"] = True
+    # 首次进入，无论地址栏如何，都落在 view，并清空 cid
     _set_query_params({"tab": "view", "cid": ""})
-    default_tab = "view"
+    desired_tab = "view"
 else:
-    # 非首次：尊重 URL 参数（如果没有就用 view）
+    # 非首次：尊重 URL 参数（若无则用 view）
     _raw_tab = params.get("tab", "")
     if isinstance(_raw_tab, list):
         _raw_tab = _raw_tab[0] if _raw_tab else ""
-    default_tab = _raw_tab or "view"
+    desired_tab = _raw_tab or "view"
 
-# 如果 URL 带了 cid，同步一下（不强制要求；仅便于进详情）
+# 同步 cid 到会话（用于详情页）
 _raw_cid = params.get("cid", "")
 if isinstance(_raw_cid, list):
     _raw_cid = _raw_cid[0] if _raw_cid else ""
 if _raw_cid:
     st.session_state.selected_customer_id = _raw_cid
+
+# ========= 把 URL 中的 tab 同步给 radio =========
+NAV = {"view": "📋 查看客户", "new": "➕ 添加客户", "progress": "⏩ 推进状态 & 添加备注"}
+nav_keys = list(NAV.keys())
+
+nav_key = "nav_tab"  # radio 的固定 key
+if nav_key not in st.session_state:
+    st.session_state[nav_key] = desired_tab
+else:
+    # 如果 URL 的 tab 变了（比如你点了“打开”的链接），就用 URL 覆盖 radio 值
+    if desired_tab and st.session_state[nav_key] != desired_tab:
+        st.session_state[nav_key] = desired_tab
+
+# 用 key 控制 radio 的值，不再使用 index
+nav = st.radio(
+    "页面导航",
+    options=nav_keys,
+    format_func=lambda k: NAV[k],
+    horizontal=True,
+    key=nav_key
+)
 
 
 # ========== 自定义“伪 Tab”导航（可编程切换） ==========
