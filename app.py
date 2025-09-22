@@ -539,15 +539,15 @@ if nav == "view":
             only_open = st.checkbox("只看未完成", value=False)
         with c3:
             status_sel = st.multiselect(
-                "按状态筛选（不选则默认隐藏沉睡）",
+                "状态（默认隐藏沉睡）",
                 [SLEEPING_STATUS] + PIPELINE_STEPS
             )
         with c4:
             sales_options = sorted([s for s in view_df.get("销售", pd.Series(dtype=str)).dropna().unique() if str(s).strip() != ""])
-            sales_sel = st.multiselect("按销售筛选", options=sales_options)
+            sales_sel = st.multiselect("销售", options=sales_options)
         with c5:
             channel_options = sorted([s for s in view_df.get("渠道", pd.Series(dtype=str)).dropna().unique() if str(s).strip() != ""])
-            channel_sel = st.multiselect("按渠道筛选", options=channel_options, help="如：销售自拓 / 客户referral 等")
+            channel_sel = st.multiselect("渠道", options=channel_options, help="如：销售自拓 / 客户referral 等")
 
         show = view_df.copy()
 
