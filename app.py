@@ -438,52 +438,54 @@ except APIError:
 
 df = read_df_cached(ws, ws_cache_key(ws))
 
-# ========= 导航：首次进入强制 view；URL 改变时强制切换；杜绝重复 key =========
+# ========= 导航：首次进入仅在“无 tab 参数”时默认 view；否则尊重 URL =========
 params = _get_query_params()
 
-# 1) 首次进入本会话：强制 view，并清空 cid（防止残留参数把你带到 Tab3）
+def _first_val(v):
+    if isinstance(v, list):
+        return v[0] if v else ""
+    return v or ""
+
+url_tab = _first_val(params.get("tab"))
+url_cid = _first_val(params.get("cid"))
+
+# 1) 首次进入：只有当 URL 没有 tab 时，才默认到 view；否则按 URL 来
 if "_visited_once" not in st.session_state:
     st.session_state["_visited_once"] = True
-    _set_query_params({"tab": "view", "cid": ""})
-    desired_tab = "view"
+    if not url_tab:  # 没有任何 tab 参数 -> 统一到 view
+        _set_query_params({"tab": "view", "cid": ""})
+        desired_tab = "view"
+    else:
+        desired_tab = url_tab  # URL 已明确指定（如 progress），不要覆盖
 else:
-    # 非首次：尊重 URL 的 tab（若无则 view）
-    _raw_tab = params.get("tab", "")
-    if isinstance(_raw_tab, list):
-        _raw_tab = _raw_tab[0] if _raw_tab else ""
-    desired_tab = _raw_tab or "view"
+    # 非首次：始终以 URL 为准；若没有则回退 view
+    desired_tab = url_tab or "view"
 
-# 同步 URL 的 cid 到会话（便于直接进详情）
-_raw_cid = params.get("cid", "")
-if isinstance(_raw_cid, list):
-    _raw_cid = _raw_cid[0] if _raw_cid else ""
-if _raw_cid:
-    st.session_state.selected_customer_id = _raw_cid
+# 同步 cid（便于直接进详情）
+if url_cid:
+    st.session_state.selected_customer_id = url_cid
 
-# 2) 定义导航项（你可以调整顺序）
+# 2) 定义导航项（顺序可调）
 NAV = {"view": "📋 查看客户", "progress": "⏩ 推进状态 & 添加备注", "new": "➕ 添加客户"}
 nav_keys = list(NAV.keys())
 
-# 3) 为了让 radio 在 URL 改变时真正切换，使用“变化即换 key”的策略：
-#    当 desired_tab 变化时，更新一个递增的后缀，生成一个全新的 widget key。
+# 3) URL tab 变化时，换一个 widget key，强制应用 index（避免 radio 记忆旧选项）
 if "_nav_widget_ver" not in st.session_state:
     st.session_state["_nav_widget_ver"] = 0
 if "_nav_desired_last" not in st.session_state:
     st.session_state["_nav_desired_last"] = None
-
 if desired_tab != st.session_state["_nav_desired_last"]:
     st.session_state["_nav_widget_ver"] += 1
     st.session_state["_nav_desired_last"] = desired_tab
 
 nav_widget_key = f"__nav_radio__v{st.session_state['_nav_widget_ver']}"
 
-# 4) 计算当前应该高亮的 index
+# 4) 计算 index 并渲染 radio（只渲染这一处导航；删除其它重复的 radio）
 try:
     default_index = nav_keys.index(desired_tab)
 except ValueError:
     default_index = 0
 
-# 5) 渲染 radio —— 用“每次变化就变 key”的方式，避免重复 key & 强制应用 index
 nav = st.radio(
     "页面导航",
     options=nav_keys,
@@ -493,7 +495,7 @@ nav = st.radio(
     key=nav_widget_key,
 )
 
-# 6) 如果用户手动切换了 radio，把选择回写到 URL（进入 progress 才携带 cid）
+# 5) 用户手动切换时，回写 URL（进入 progress 才带 cid）
 if nav != desired_tab:
     _set_query_params({
         "tab": nav,
