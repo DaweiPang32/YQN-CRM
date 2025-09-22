@@ -440,7 +440,14 @@ df = read_df_cached(ws, ws_cache_key(ws))
 
 # ========== 读取 URL 查询参数，实现“点击即跳转详情” ==========
 params = _get_query_params()
-default_tab = params.get("tab", ["view"])[0] if isinstance(params.get("tab"), list) else params.get("tab", "view")
+
+if "tab" not in params or not params["tab"]:  
+    # 首次进入（URL 没有带 tab 参数），强制落在 view
+    default_tab = "view"
+else:
+    # 已经带了参数，就用参数值
+    default_tab = params["tab"][0] if isinstance(params["tab"], list) else params["tab"]
+
 if "cid" in params and params["cid"]:
     cid_val = params["cid"][0] if isinstance(params["cid"], list) else params["cid"]
     st.session_state.selected_customer_id = cid_val
