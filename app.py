@@ -503,15 +503,6 @@ if nav != desired_tab:
 
 
 # ========== 自定义“伪 Tab”导航（可编程切换） ==========
-NAV = {"view": "📋 查看客户", "new": "➕ 添加客户", "progress": "⏩ 推进状态 & 添加备注"}
-nav_keys = list(NAV.keys())
-try:
-    default_index = nav_keys.index(default_tab) if default_tab in nav_keys else 0
-except:
-    default_index = 0
-
-nav = st.radio("页面导航", options=nav_keys, format_func=lambda k: NAV[k], horizontal=True, index=default_index)
-
 def _goto(tab_key: str, cid: str = ""):
     if cid:
         st.session_state.selected_customer_id = cid
