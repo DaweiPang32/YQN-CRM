@@ -694,7 +694,7 @@ elif nav == "new":
         pref_whs = st.text_input("Preferred WHS Location")
         sales = st.text_input("销售 *")
     
-        # 从现有数据收集已用过的渠道（非空）
+        # 从已有数据收集渠道
         existing_channels = []
         try:
             existing_channels = sorted([
@@ -704,25 +704,25 @@ elif nav == "new":
         except Exception:
             pass
     
-        # 系统给出的常用渠道（可按需增减）
+        # 常用内置渠道
         builtin_channels = ["销售自拓", "客户referral"]
     
-        # 合并：内置 + 历史（去重，保留顺序）+ 自定义选项
-        merged = []
+        # 合并去重
+        channel_options = []
         for x in builtin_channels + existing_channels:
-            if x not in merged:
-                merged.append(x)
-        merged.append("自定义…")
+            if x not in channel_options:
+                channel_options.append(x)
     
-        channel_mode = st.selectbox("渠道 *", merged, index=0)
+        # 选择已有渠道或自定义
+        channel_choice = st.selectbox("渠道（可选或手动输入）*", options=["自定义填写"] + channel_options)
         channel_custom = ""
-        if channel_mode == "自定义…":
-            channel_custom = st.text_input("自定义渠道名称 *", placeholder="例如：展会线索 / 官网咨询 / 合作伙伴推荐 …")
+        if channel_choice == "自定义填写":
+            channel_custom = st.text_input("请输入渠道名称 *", placeholder="例如：展会线索 / 官网咨询 / 合作伙伴推荐 …")
 
 
-    if st.button("保存为新客户（记录 TouchBase 时间）", type="primary", use_container_width=True):
-        # 计算渠道值：选择“自定义…”则用输入框，否则用下拉值
-        channel_val = channel_custom.strip() if channel_mode == "自定义…" else str(channel_mode).strip()
+
+     if st.button("保存为新客户（记录 TouchBase 时间）", type="primary", use_container_width=True):
+        channel_val = channel_custom.strip() if channel_choice == "自定义填写" else channel_choice.strip()
     
         if not company.strip():
             st.error("Company Name 必填")
@@ -735,7 +735,7 @@ elif nav == "new":
         else:
             cid = gen_customer_id(); ts = now_str()
             ts_cols_init = {col: "" for col in STATUS_TS_COLS}
-            ts_cols_init[f"{PIPELINE_STEPS[0]}_时间"] = ts  # TouchBase_时间
+            ts_cols_init[f"{PIPELINE_STEPS[0]}_时间"] = ts
     
             row = {
                 "customer_id": cid,
@@ -744,7 +744,7 @@ elif nav == "new":
                 "Contact": contact.strip(),
                 "业务": business.strip(),
                 "Preferred WHS Location": pref_whs.strip(),
-                "渠道": channel_val,                 # ✅ 直接保存最终渠道
+                "渠道": channel_val,            # ✅ 直接保存渠道
                 "当前状态": PIPELINE_STEPS[0],
                 **ts_cols_init,
                 "销售": sales.strip(),
@@ -753,6 +753,7 @@ elif nav == "new":
             st.success(f"✅ 新客户已创建：{company}（ID: {cid}），当前状态=TouchBase，时间={ts}")
             st.cache_data.clear()
             _goto("progress", cid)
+
 
 
 # =================== 页面：⏩ 推进状态 & 添加备注 ===================
