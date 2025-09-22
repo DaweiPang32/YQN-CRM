@@ -613,6 +613,8 @@ if nav == "view":
                 return f"🔴 {v}"
 
         table["距上次推进_天_显示"] = table.apply(lambda r: red_badge(r.get("距上次推进_天"), r.get("当前状态")), axis=1)
+        # 默认按“距上次推进_天”降序排列（沉睡或空值在最后）
+        table = table.sort_values("距上次推进_天", ascending=False, na_position="last").reset_index(drop=True)
 
         # 展示列：显示“红点+数字”的文本列 & 保留原始数字列以便排序/筛选
         display_cols = [
