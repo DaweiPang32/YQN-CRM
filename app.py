@@ -715,6 +715,8 @@ elif nav == "new":
         pref_whs = st.text_input("Preferred WHS Location")
         sales = st.text_input("销售 *")
     
+        # ✅ 新增一个输入框
+        sales_info = st.text_area("销售信息（报价/折扣/付款/关键点）")
         # 从已有数据收集渠道
         existing_channels = []
         try:
@@ -766,7 +768,7 @@ elif nav == "new":
                 "Preferred WHS Location": pref_whs.strip(),
                 "渠道": channel_val,
                 "客户需求": customer_need.strip(),   # ✅ 新增
-                "销售信息": "",                    # ✅ 先留空（或也做一个输入框，见下条可选增强）
+                "销售信息": sales_info.strip(),      # ✅
                 "当前状态": PIPELINE_STEPS[0],
                 **ts_cols_init,
                 "销售": sales.strip(),
