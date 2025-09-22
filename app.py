@@ -25,7 +25,7 @@ SCOPES = [
 TZ = ZoneInfo("America/Los_Angeles")
 
 # 6 个阶段（按顺序推进，英文）
-PIPELINE_STEPS = ["TouchBase", "Qualify", "Develop", "Propose", "Close", "Fulfill"]
+PIPELINE_STEPS = ["TouchBase", "Qualify", "Propose", "Develop", "Close", "Fulfill"]
 SLEEPING_STATUS = "沉睡"   # 旁路状态（暂停沟通）
 
 # 根据阶段自动生成时间戳列名
