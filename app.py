@@ -904,7 +904,7 @@ else:
                 if df_view.empty:
                     st.caption("暂无记录。")
                     return None, None
-                show_cols = ["内容", "创建时间", "完成_bool", "__abs_idx__"]
+                show_cols = ["内容", "创建时间", "完成_bool"]
                 df_show = df_view[show_cols].copy()
                 df_show = df_show.rename(columns={"完成_bool": "已完成"})
                 edited = st.data_editor(
