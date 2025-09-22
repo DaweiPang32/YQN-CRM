@@ -721,38 +721,38 @@ elif nav == "new":
 
 
     if st.button("保存为新客户（记录 TouchBase 时间）", type="primary", use_container_width=True):
-    # 计算渠道值：选择“自定义…”则用输入框，否则用下拉值
-    channel_val = channel_custom.strip() if channel_mode == "自定义…" else str(channel_mode).strip()
-
-    if not company.strip():
-        st.error("Company Name 必填")
-    elif not validate_phone_or_email(contact):
-        st.error("Contact 至少提供姓名/电话/邮箱之一")
-    elif not sales.strip():
-        st.error("销售 必填")
-    elif not channel_val:
-        st.error("渠道 必填")
-    else:
-        cid = gen_customer_id(); ts = now_str()
-        ts_cols_init = {col: "" for col in STATUS_TS_COLS}
-        ts_cols_init[f"{PIPELINE_STEPS[0]}_时间"] = ts  # TouchBase_时间
-
-        row = {
-            "customer_id": cid,
-            "Company Name": company.strip(),
-            "Address": address.strip(),
-            "Contact": contact.strip(),
-            "业务": business.strip(),
-            "Preferred WHS Location": pref_whs.strip(),
-            "渠道": channel_val,                 # ✅ 直接保存最终渠道
-            "当前状态": PIPELINE_STEPS[0],
-            **ts_cols_init,
-            "销售": sales.strip(),
-        }
-        write_new_row(ws, [row.get(c, "") for c in COLUMNS])
-        st.success(f"✅ 新客户已创建：{company}（ID: {cid}），当前状态=TouchBase，时间={ts}")
-        st.cache_data.clear()
-        _goto("progress", cid)
+        # 计算渠道值：选择“自定义…”则用输入框，否则用下拉值
+        channel_val = channel_custom.strip() if channel_mode == "自定义…" else str(channel_mode).strip()
+    
+        if not company.strip():
+            st.error("Company Name 必填")
+        elif not validate_phone_or_email(contact):
+            st.error("Contact 至少提供姓名/电话/邮箱之一")
+        elif not sales.strip():
+            st.error("销售 必填")
+        elif not channel_val:
+            st.error("渠道 必填")
+        else:
+            cid = gen_customer_id(); ts = now_str()
+            ts_cols_init = {col: "" for col in STATUS_TS_COLS}
+            ts_cols_init[f"{PIPELINE_STEPS[0]}_时间"] = ts  # TouchBase_时间
+    
+            row = {
+                "customer_id": cid,
+                "Company Name": company.strip(),
+                "Address": address.strip(),
+                "Contact": contact.strip(),
+                "业务": business.strip(),
+                "Preferred WHS Location": pref_whs.strip(),
+                "渠道": channel_val,                 # ✅ 直接保存最终渠道
+                "当前状态": PIPELINE_STEPS[0],
+                **ts_cols_init,
+                "销售": sales.strip(),
+            }
+            write_new_row(ws, [row.get(c, "") for c in COLUMNS])
+            st.success(f"✅ 新客户已创建：{company}（ID: {cid}），当前状态=TouchBase，时间={ts}")
+            st.cache_data.clear()
+            _goto("progress", cid)
 
 
 # =================== 页面：⏩ 推进状态 & 添加备注 ===================
