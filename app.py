@@ -730,13 +730,29 @@ else:
     cname = row["Company Name"]
     st.session_state.selected_customer_name = cname
 
+    def _show_val(v):
+        vv = str(v or "").strip()
+        return vv if vv else "—"
+    
+    st.subheader("客户信息")
+    
+    colL, colR = st.columns(2)
+    with colL:
+        st.markdown(f"**Company Name**：{_show_val(row.get('Company Name',''))}")
+        st.markdown(f"**Address**：{_show_val(row.get('Address',''))}")
+        st.markdown(f"**Contact**：{_show_val(row.get('Contact',''))}")
+        st.markdown(f"**业务**：{_show_val(row.get('业务',''))}")
+    with colR:
+        st.markdown(f"**Preferred WHS Location**：{_show_val(row.get('Preferred WHS Location',''))}")
+        st.markdown(f"**渠道**：{_show_val(row.get('渠道',''))}")
+        st.markdown(f"**销售**：{_show_val(row.get('销售',''))}")
+        st.markdown(f"**ID**：`{cid}`")
+    
     st.markdown(
-        f"**公司**：{cname}  \n"
-        f"**ID**：{cid}  \n"
         f"**当前状态**：{row['当前状态']}  \n"
-        f"**是否完成**：{'是' if row['当前状态']=='Fulfill' else '否'}  \n"
-        f"**渠道**：{row.get('渠道','') or '—'}"
+        f"**是否完成**：{'是' if row['当前状态']=='Fulfill' else '否'}"
     )
+
 
     # 时间节点
     with st.expander("🕒 各状态时间节点（概览）", expanded=True):
