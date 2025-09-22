@@ -42,7 +42,7 @@ COLUMNS = [
     "Preferred WHS Location",
     "渠道",
     "客户需求",         # ✅ 新增
-    "销售信息",         # ✅ 新增（备注报价、折扣、跟进要点等）
+    "客户销售信息",         # ✅ 新增（备注报价、折扣、跟进要点等）
     "当前状态",
     *STATUS_TS_COLS,    # TouchBase_时间 ... Fulfill_时间
     "销售",
@@ -819,7 +819,7 @@ else:
         st.markdown(f"**渠道**：{_show_val(row.get('渠道',''))}")
         st.markdown(f"**销售**：{_show_val(row.get('销售',''))}")
         st.markdown(f"**ID**：`{cid}`")
-        st.markdown(f"**销售信息**：{_show_val(row.get('销售信息',''))}")
+        st.markdown(f"**客户销售信息**：{_show_val(row.get('客户销售信息',''))}")
     
     st.markdown(
         f"**当前状态**：{row['当前状态']}  \n"
