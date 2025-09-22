@@ -438,26 +438,53 @@ except APIError:
 
 df = read_df_cached(ws, ws_cache_key(ws))
 
-# ========= 首次进入仅一次：强制 view =========
+# ========= 导航：首次进入强制 view；其余严格以 URL 为准；radio 与 URL 双向同步 =========
 params = _get_query_params()
+
+# 1) 首次进入本会话：强制 view，并清空 cid，防止残留参数把你带到 Tab3
 if "_visited_once" not in st.session_state:
     st.session_state["_visited_once"] = True
-    # 首次进入，无论地址栏如何，都落在 view，并清空 cid
     _set_query_params({"tab": "view", "cid": ""})
     desired_tab = "view"
 else:
-    # 非首次：尊重 URL 参数（若无则用 view）
+    # 非首次：尊重 URL 的 tab（若无则 view）
     _raw_tab = params.get("tab", "")
     if isinstance(_raw_tab, list):
         _raw_tab = _raw_tab[0] if _raw_tab else ""
     desired_tab = _raw_tab or "view"
 
-# 同步 cid 到会话（用于详情页）
+# 2) 同步 URL 的 cid 到会话（便于直接进详情）
 _raw_cid = params.get("cid", "")
 if isinstance(_raw_cid, list):
     _raw_cid = _raw_cid[0] if _raw_cid else ""
 if _raw_cid:
     st.session_state.selected_customer_id = _raw_cid
+
+# 3) 渲染 radio 前，先把 radio 的值设置成 URL 的 tab；这样点击表格里的链接会切到正确的 Tab
+NAV = {"view": "📋 查看客户", "progress": "⏩ 推进状态 & 添加备注", "new": "➕ 添加客户"}  # 顺序你可按需
+nav_keys = list(NAV.keys())
+nav_key = "nav_tab"  # radio 的固定 key
+
+# 用 URL 覆盖（或初始化）radio 当前值
+st.session_state[nav_key] = desired_tab
+
+nav = st.radio(
+    "页面导航",
+    options=nav_keys,
+    format_func=lambda k: NAV[k],
+    horizontal=True,
+    key=nav_key  # 关键：用 key 绑定 radio 值
+)
+
+# 4) 当用户手动切换 radio 时，把选择回写到 URL（并根据是否进详情决定是否携带 cid）
+if nav != desired_tab:
+    _set_query_params({
+        "tab": nav,
+        "cid": st.session_state.get("selected_customer_id", "") if nav == "progress" else ""
+    })
+    # 为了让 URL 与 UI 立刻一致
+    _rerun()
+
 
 # ========= 把 URL 中的 tab 同步给 radio =========
 NAV = {"view": "📋 查看客户", "new": "➕ 添加客户", "progress": "⏩ 推进状态 & 添加备注"}
