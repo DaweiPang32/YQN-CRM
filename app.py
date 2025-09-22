@@ -768,7 +768,7 @@ elif nav == "new":
                 "Preferred WHS Location": pref_whs.strip(),
                 "渠道": channel_val,
                 "客户需求": customer_need.strip(),   # ✅ 新增
-                "销售信息": sales_info.strip(),      # ✅
+                "客户销售信息": sales_info.strip(),      # ✅
                 "当前状态": PIPELINE_STEPS[0],
                 **ts_cols_init,
                 "销售": sales.strip(),
