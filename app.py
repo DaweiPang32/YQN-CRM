@@ -917,7 +917,6 @@ else:
                         "内容": st.column_config.TextColumn(disabled=True),
                         "创建时间": st.column_config.TextColumn(disabled=True),
                         "已完成": st.column_config.CheckboxColumn("已完成"),
-                        "__abs_idx__": st.column_config.TextColumn("row_idx", disabled=True, help="工作表行映射（内部）"),
                     },
                     disabled=["内容", "创建时间", "__abs_idx__"],
                     height=min(420, 48 + 38 * len(df_show))
