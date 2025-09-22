@@ -485,7 +485,6 @@ if nav != desired_tab:
     # 为了让 URL 与 UI 立刻一致
     _rerun()
 
-
 # ========= 把 URL 中的 tab 同步给 radio =========
 NAV = {"view": "📋 查看客户", "new": "➕ 添加客户", "progress": "⏩ 推进状态 & 添加备注"}
 nav_keys = list(NAV.keys())
