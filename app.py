@@ -37,13 +37,17 @@ COLUMNS = [
     "Company Name",
     "Address",
     "Contact",
+    "客户邮箱",         # ✅ 新增
     "业务",
     "Preferred WHS Location",
-    "渠道",         # <== 新增
+    "渠道",
+    "客户需求",         # ✅ 新增
+    "销售信息",         # ✅ 新增（备注报价、折扣、跟进要点等）
     "当前状态",
-    *STATUS_TS_COLS,        # TouchBase_时间 ... Fulfill_时间
+    *STATUS_TS_COLS,    # TouchBase_时间 ... Fulfill_时间
     "销售",
 ]
+
 
 # 备注表（每阶段一张）——后缀中文“代办任务”；新增「完成」列（"是"/""）
 NOTES_SHEETS = {s: f"{s}代办任务" for s in PIPELINE_STEPS}
@@ -281,14 +285,27 @@ def get_main_handles_cached(sheet_id_key: str, sheet_title_key: str):
 @st.cache_data(show_spinner=False, ttl=60)
 def read_df_cached(_ws, cache_key: str) -> pd.DataFrame:
     vals = safe_get_all_values(_ws)
-    if not vals: return pd.DataFrame(columns=COLUMNS)
-    df = pd.DataFrame(vals[1:], columns=vals[0])
-    if df.empty: return pd.DataFrame(columns=COLUMNS)
-    df = df[df["customer_id"].astype(str).str.len() > 0]
-    # 兼容老数据：如果无“渠道”列则补空
-    if "渠道" not in df.columns:
-        df["渠道"] = ""
+    if not vals:
+        return pd.DataFrame(columns=COLUMNS)
+    df = pd.DataFrame(vals[1:], columns=vals[0]) if len(vals) > 1 else pd.DataFrame(columns=vals[0])
+
+    if df.empty:
+        df = pd.DataFrame(columns=vals[0])
+
+    # 仅保留有 ID 的行
+    if "customer_id" in df.columns:
+        df = df[df["customer_id"].astype(str).str.len() > 0]
+
+    # ✅ 兼容老表：缺失的列全部补空
+    for col in COLUMNS:
+        if col not in df.columns:
+            df[col] = ""
+
+    # 丢弃多余列（可选）——如不想丢，可注释掉
+    df = df[COLUMNS]
+
     return df
+
 
 def write_new_row(_ws, row_values: list):
     _safe_append_row(_ws, row_values)
@@ -687,8 +704,12 @@ elif nav == "new":
     with col1:
         company = st.text_input("Company Name *")
         address = st.text_area("Address")
-        contact = st.text_input("Contact（可填姓名/电话/邮箱）*")
+        contact = st.text_input("Contact")
+        customer_email = st.text_input("客户邮箱")
+        customer_need  = st.text_area("客户需求")
         business = st.text_input("业务")
+
+        
     # ---- 表单右侧（替换原来的 sales + channel 那几行）----
     with col2:
         pref_whs = st.text_input("Preferred WHS Location")
@@ -740,9 +761,12 @@ elif nav == "new":
                 "Company Name": company.strip(),
                 "Address": address.strip(),
                 "Contact": contact.strip(),
+                "客户邮箱": customer_email.strip(),   # ✅ 新增
                 "业务": business.strip(),
                 "Preferred WHS Location": pref_whs.strip(),
-                "渠道": channel_val,            # ✅ 直接保存渠道
+                "渠道": channel_val,
+                "客户需求": customer_need.strip(),   # ✅ 新增
+                "销售信息": "",                    # ✅ 先留空（或也做一个输入框，见下条可选增强）
                 "当前状态": PIPELINE_STEPS[0],
                 **ts_cols_init,
                 "销售": sales.strip(),
@@ -786,11 +810,14 @@ else:
         st.markdown(f"**Address**：{_show_val(row.get('Address',''))}")
         st.markdown(f"**Contact**：{_show_val(row.get('Contact',''))}")
         st.markdown(f"**业务**：{_show_val(row.get('业务',''))}")
+        st.markdown(f"**客户邮箱**：{_show_val(row.get('客户邮箱',''))}")
+        st.markdown(f"**客户需求**：{_show_val(row.get('客户需求',''))}")
     with colR:
         st.markdown(f"**Preferred WHS Location**：{_show_val(row.get('Preferred WHS Location',''))}")
         st.markdown(f"**渠道**：{_show_val(row.get('渠道',''))}")
         st.markdown(f"**销售**：{_show_val(row.get('销售',''))}")
         st.markdown(f"**ID**：`{cid}`")
+        st.markdown(f"**销售信息**：{_show_val(row.get('销售信息',''))}")
     
     st.markdown(
         f"**当前状态**：{row['当前状态']}  \n"
