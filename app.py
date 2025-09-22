@@ -716,7 +716,7 @@ elif nav == "new":
         sales = st.text_input("销售 *")
     
         # ✅ 新增一个输入框
-        sales_info = st.text_area("销售信息（报价/折扣/付款/关键点）")
+        sales_info = st.text_area("客户销售信息")
         # 从已有数据收集渠道
         existing_channels = []
         try:
