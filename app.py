@@ -438,27 +438,29 @@ except APIError:
 
 df = read_df_cached(ws, ws_cache_key(ws))
 
-# ========== 读取 URL 查询参数，实现“点击即跳转详情” ==========
+# ========= 首次进入默认落在 view，其余时候尊重 URL 参数 =========
 params = _get_query_params()
 
-if "tab" not in params or not params["tab"]:  
-    # 首次进入（URL 没有带 tab 参数），强制落在 view
+# 会话级开关：仅首次进入时生效
+if "_visited_once" not in st.session_state:
+    st.session_state["_visited_once"] = True  # 标记已完成首次进入
+    # 首次一律落在 view，并清理残留的 tab/cid（比如上次停在 progress）
+    _set_query_params({"tab": "view", "cid": ""})
     default_tab = "view"
 else:
-    # 已经带了参数，就用参数值
-    default_tab = params["tab"][0] if isinstance(params["tab"], list) else params["tab"]
+    # 非首次：尊重 URL 参数（如果没有就用 view）
+    _raw_tab = params.get("tab", "")
+    if isinstance(_raw_tab, list):
+        _raw_tab = _raw_tab[0] if _raw_tab else ""
+    default_tab = _raw_tab or "view"
 
-if "cid" in params and params["cid"]:
-    cid_val = params["cid"][0] if isinstance(params["cid"], list) else params["cid"]
-    st.session_state.selected_customer_id = cid_val
+# 如果 URL 带了 cid，同步一下（不强制要求；仅便于进详情）
+_raw_cid = params.get("cid", "")
+if isinstance(_raw_cid, list):
+    _raw_cid = _raw_cid[0] if _raw_cid else ""
+if _raw_cid:
+    st.session_state.selected_customer_id = _raw_cid
 
-# 根据 cid 补全公司名（如有）
-if st.session_state.selected_customer_id and not st.session_state.selected_customer_name and not df.empty:
-    try:
-        ridx = df.index[df["customer_id"] == st.session_state.selected_customer_id][0]
-        st.session_state.selected_customer_name = df.loc[ridx, "Company Name"]
-    except Exception:
-        pass
 
 # ========== 自定义“伪 Tab”导航（可编程切换） ==========
 NAV = {"view": "📋 查看客户", "new": "➕ 添加客户", "progress": "⏩ 推进状态 & 添加备注"}
