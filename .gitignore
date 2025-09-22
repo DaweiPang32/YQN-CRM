@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+env/
+venv/
+
+# Streamlit local cache
+.streamlit/
+
+# Secrets & keys (一定不要提交)
+service_account.json
+.streamlit/secrets.toml
