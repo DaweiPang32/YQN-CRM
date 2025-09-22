@@ -719,8 +719,6 @@ elif nav == "new":
         if channel_choice == "自定义填写":
             channel_custom = st.text_input("请输入渠道名称 *", placeholder="例如：展会线索 / 官网咨询 / 合作伙伴推荐 …")
 
-
-
      if st.button("保存为新客户（记录 TouchBase 时间）", type="primary", use_container_width=True):
         channel_val = channel_custom.strip() if channel_choice == "自定义填写" else channel_choice.strip()
     
