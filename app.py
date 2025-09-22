@@ -598,21 +598,30 @@ if nav == "view":
             tt = _as_tz_aware(t)
             return tt.strftime("%Y-%m-%d %H:%M:%S") if tt else "（无）"
 
-        table["最近推进时间_显示"] = table["最近推进时间"].apply(_fmt_dt_safe)
-
-
-        # “醒目红色”的兼容展示：用红色圆点 emoji 模拟（沉睡客户留空）
-        def red_badge(v, status):
+        table["最近推进时间_显示"] = table["最近推进时间"].apply(
+            lambda t: _fmt_dt_safe(t)  # 你前面第(3)步补过的安全格式化函数
+        )
+        
+        # 彩色徽标（沉睡不显示）
+        def color_badge(days, status):
             if status == SLEEPING_STATUS:
-                return ""   # 沉睡不显示预警
-            if v is None or v == "":
+                return ""  # 沉睡不预警
+            if days is None or days == "":
                 return ""
             try:
-                return f"🔴 {int(v)}"
+                d = int(days)
             except:
-                return f"🔴 {v}"
+                return ""
+            if d <= 6:
+                return f"🟢 {d}"
+            elif d <= 15:
+                return f"🟠 {d}"
+            else:
+                return f"🔴 {d}"
 
-        table["距上次推进_天_显示"] = table.apply(lambda r: red_badge(r.get("距上次推进_天"), r.get("当前状态")), axis=1)
+        table["距上次推进_天_显示"] = table.apply(
+            lambda r: color_badge(r.get("距上次推进_天"), r.get("当前状态")), axis=1
+        )
         # 默认按“距上次推进_天”降序排列（沉睡或空值在最后）
         table = table.sort_values("距上次推进_天", ascending=False, na_position="last").reset_index(drop=True)
 
