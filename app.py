@@ -904,25 +904,29 @@ else:
                 if df_view.empty:
                     st.caption("暂无记录。")
                     return None, None
-                show_cols = ["内容", "创建时间", "完成_bool"]
-                df_show = df_view[show_cols].copy()
+            
+                # 保留联结键
+                df_show = df_view[["__abs_idx__", "内容", "创建时间", "完成_bool"]].copy()
                 df_show = df_show.rename(columns={"完成_bool": "已完成"})
+            
                 edited = st.data_editor(
                     df_show,
                     key=f"ed_{status}_{cid}_{tab_key}",
                     use_container_width=True,
-                    hide_index=True,
+                    hide_index=True,               # 隐藏行索引
                     num_rows="fixed",
                     column_config={
+                        "__abs_idx__": st.column_config.TextColumn("RID", help="内部行号（只读）"),
                         "内容": st.column_config.TextColumn(disabled=True),
                         "创建时间": st.column_config.TextColumn(disabled=True),
                         "已完成": st.column_config.CheckboxColumn("已完成"),
                     },
-                    disabled=["内容", "创建时间", "__abs_idx__"],
+                    disabled=["__abs_idx__", "内容", "创建时间"],   # 联结键设为只读
                     height=min(420, 48 + 38 * len(df_show))
                 )
                 do_save = st.button("💾 保存更改", key=f"save_{status}_{cid}_{tab_key}", use_container_width=True)
                 return edited, do_save
+
 
             with tabs[0]:
                 edited_todo, save_todo = _render_editor(todo_view, "todo")
