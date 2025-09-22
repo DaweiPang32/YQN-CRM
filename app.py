@@ -482,15 +482,6 @@ def _goto(tab_key: str, cid: str = ""):
     _set_query_params({"tab": tab_key, "cid": st.session_state.selected_customer_id if tab_key=="progress" else ""})
     _rerun()
 
-# 侧边栏连接自检（可选）
-with st.sidebar:
-    st.markdown("### 🔌 连接自检")
-    st.code(f"Title: {sh.title}\nID: {sh.id}")
-    try:
-        ws_titles = [w.title for w in sh.worksheets()]
-        st.write("页签：", ", ".join(ws_titles) if ws_titles else "（无）")
-    except Exception as e:
-        st.warning(f"读取页签失败：{e}")
 
 # ======================= 页面：📋 查看客户 =======================
 if nav == "view":
