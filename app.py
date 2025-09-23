@@ -436,37 +436,45 @@ def build_latest_note_dt_map(_gc, _sh, cache_key: str) -> dict:
     return note_map
     
 @st.cache_data(show_spinner=False, ttl=60)
-def build_latest_note_text_map(_gc, _sh, cache_key: str) -> dict:
+def build_latest_unfinished_note_map(_gc, _sh, cache_key: str) -> dict:
     """
-    返回 {customer_id: 最新一条备注内容文本}。
-    以『创建时间』最大的一条为准，不区分是否完成。
+    返回 {customer_id: 最新一条未完成备注内容}。
+    仅取「完成」列不为 '是' 的记录，按创建时间最大。
     """
     text_map = {}
-    # A-D 覆盖 note_id, customer_id, 内容, 创建时间
-    ranges = [f"'{title}'!A1:D" for title in NOTES_SHEETS.values()]
+
+    # 批量读取：取 A-E 列 (note_id, customer_id, 内容, 创建时间, 完成)
+    ranges = [f"'{title}'!A1:E" for title in NOTES_SHEETS.values()]
     try:
         res = safe_values_batch_get(_sh, ranges)
     except Exception:
         res = None
 
     if res:
-        # 批量成功：一次遍历拿到每个客户的最新内容
-        latest_dt = {}  # {cid: dt}
+        latest_dt = {}
         for values in res:
             if not values or len(values) < 2:
                 continue
             header = values[0]
+
             def idx(col_name, default=None):
-                try: return header.index(col_name)
-                except ValueError: return default
+                try: 
+                    return header.index(col_name)
+                except ValueError: 
+                    return default
+
             idx_cid = idx("customer_id", 1)
             idx_ct  = idx("创建时间", 3)
             idx_txt = idx("内容", 2)
+            idx_done= idx("完成", 4)
 
             for r in values[1:]:
                 cid = r[idx_cid] if (idx_cid is not None and idx_cid < len(r)) else ""
-                if not cid: 
+                if not cid:
                     continue
+                done_val = r[idx_done] if (idx_done is not None and idx_done < len(r)) else ""
+                if str(done_val).strip() == "是":
+                    continue  # 跳过已完成
                 t = _parse_dt_flex(r[idx_ct]) if (idx_ct is not None and idx_ct < len(r)) else None
                 txt = r[idx_txt] if (idx_txt is not None and idx_txt < len(r)) else ""
                 if not t:
@@ -476,6 +484,25 @@ def build_latest_note_text_map(_gc, _sh, cache_key: str) -> dict:
                     latest_dt[cid] = t
                     text_map[cid]  = txt
         return text_map
+
+    # 降级逐表
+    for status in PIPELINE_STEPS:
+        ws = _get_or_create_notes_ws(_gc, _sh, status)
+        df = read_notes_df(ws, ws_cache_key(ws))
+        if df.empty:
+            continue
+        df["_dt_"] = pd.to_datetime(df["创建时间"], errors="coerce")
+        df = df[df["完成"].astype(str).str.strip() != "是"]   # 只保留未完成
+        df = df.dropna(subset=["_dt_"])
+        if df.empty:
+            continue
+        grp = df.sort_values("_dt_").groupby("customer_id").tail(1)
+        for _, r in grp.iterrows():
+            cid = str(r.get("customer_id","")).strip()
+            if cid:
+                text_map[cid] = str(r.get("内容",""))
+    return text_map
+
 
     # 降级逐表读取
     for status in PIPELINE_STEPS:
@@ -608,8 +635,11 @@ if nav == "view":
         view_df["最近更新时间"] = view_df.apply(lambda r: latest_activity_str_for_row(r, note_dt_map), axis=1)
         view_df["是否完成"] = view_df["当前状态"].apply(lambda s: "是" if s == "Fulfill" else "否")
 
-        latest_note_text_map = build_latest_note_text_map(gc, sh, sh_cache_key(sh))
-        view_df["最新待办"] = view_df["customer_id"].map(lambda x: latest_note_text_map.get(str(x).strip(), ""))
+        latest_unfinished_map = build_latest_unfinished_note_map(gc, sh, sh_cache_key(sh))
+        view_df["最新待办"] = view_df["customer_id"].map(
+            lambda x: latest_unfinished_map.get(str(x).strip(), "")
+        )
+
 
 
         # 最近推进时间（仅看状态时间戳，不含备注）
