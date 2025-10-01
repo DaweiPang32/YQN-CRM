@@ -458,9 +458,9 @@ def build_latest_unfinished_note_map(_gc, _sh, cache_key: str) -> dict:
             header = values[0]
 
             def idx(col_name, default=None):
-                try: 
+                try:
                     return header.index(col_name)
-                except ValueError: 
+                except ValueError:
                     return default
 
             idx_cid = idx("customer_id", 1)
@@ -485,7 +485,7 @@ def build_latest_unfinished_note_map(_gc, _sh, cache_key: str) -> dict:
                     text_map[cid]  = txt
         return text_map
 
-    # 降级逐表
+    # —— 批量失败时：降级逐表读取（只保留一份，不重复）——
     for status in PIPELINE_STEPS:
         ws = _get_or_create_notes_ws(_gc, _sh, status)
         df = read_notes_df(ws, ws_cache_key(ws))
@@ -502,6 +502,7 @@ def build_latest_unfinished_note_map(_gc, _sh, cache_key: str) -> dict:
             if cid:
                 text_map[cid] = str(r.get("内容",""))
     return text_map
+
 
 
     # 降级逐表读取
@@ -635,29 +636,31 @@ if nav == "view":
         view_df["最近更新时间"] = view_df.apply(lambda r: latest_activity_str_for_row(r, note_dt_map), axis=1)
         view_df["是否完成"] = view_df["当前状态"].apply(lambda s: "是" if s == "Fulfill" else "否")
 
+        # 最新待办内容
         latest_unfinished_map = build_latest_unfinished_note_map(gc, sh, sh_cache_key(sh))
         view_df["最新待办"] = view_df["customer_id"].map(
             lambda x: latest_unfinished_map.get(str(x).strip(), "")
         )
 
-
-
-        # 最近推进时间（仅看状态时间戳，不含备注）
-        def _latest_progress_dt(row):
+        # ✅ 最近跟进时间（优先用备注；否则回落到阶段时间戳）
+        def _latest_followup_dt(row):
+            cid = str(row.get("customer_id", "")).strip()
+            note_dt = note_dt_map.get(cid)
+            if note_dt:
+                return note_dt
             dts = []
             for c in STATUS_TS_COLS:
                 dt = _parse_dt_flex(row.get(c, ""))
-                if dt: dts.append(dt)
+                if dt:
+                    dts.append(dt)
             return max(dts) if dts else None
 
         now_dt = datetime.now(TZ)
-        view_df["最近推进时间"] = view_df.apply(_latest_progress_dt, axis=1)
+        view_df["最近跟进时间"] = view_df.apply(_latest_followup_dt, axis=1)
 
-        def _days_since_safe(t, status):
-            # 沉睡：不预警
+        def _days_since_safe_followup(t, status):
             if status == SLEEPING_STATUS:
                 return None
-            # None/NaT：不计算
             try:
                 import pandas as pd
                 if t is None or pd.isna(t):
@@ -671,21 +674,17 @@ if nav == "view":
             return (now_dt.date() - aware.date()).days
 
         view_df["距上次推进_天"] = view_df.apply(
-            lambda r: _days_since_safe(r.get("最近推进时间"), r.get("当前状态")), axis=1
+            lambda r: _days_since_safe_followup(r.get("最近跟进时间"), r.get("当前状态")), axis=1
         )
 
-
-        # 过滤区（按销售 + 渠道 + 状态；默认不显示沉睡）
+        # ---------------- 过滤区 ----------------
         c1, c2, c3, c4, c5 = st.columns([2, 1, 1, 1, 1])
         with c1:
             kw = st.text_input("关键词（公司名/ID/联系人）")
         with c2:
             only_open = st.checkbox("只看未完成", value=False)
         with c3:
-            status_sel = st.multiselect(
-                "状态（默认隐藏沉睡）",
-                [SLEEPING_STATUS] + PIPELINE_STEPS
-            )
+            status_sel = st.multiselect("状态（默认隐藏沉睡）", [SLEEPING_STATUS] + PIPELINE_STEPS)
         with c4:
             sales_options = sorted([s for s in view_df.get("销售", pd.Series(dtype=str)).dropna().unique() if str(s).strip() != ""])
             sales_sel = st.multiselect("销售", options=sales_options)
@@ -704,13 +703,13 @@ if nav == "view":
                 show["Contact"].fillna("").str.lower().str.contains(lk)
             ]
 
-        # ✅ 状态过滤：若未选择任何状态 -> 默认排除沉睡
-        if status_sel and len(status_sel) > 0:
+        # 状态过滤
+        if status_sel:
             show = show[show["当前状态"].isin(status_sel)]
         else:
             show = show[show["当前状态"] != SLEEPING_STATUS]
 
-        # 只看未完成（不影响上面的“默认隐藏沉睡”）
+        # 只看未完成
         if only_open:
             show = show[show["是否完成"] != "是"]
 
@@ -720,17 +719,16 @@ if nav == "view":
         if channel_sel:
             show = show[show["渠道"].isin(channel_sel)]
 
-
-        # 组装表格数据（沉睡客户的“距上次推进_天”为空）
-        table = show[[
-            "Company Name", "customer_id", "销售", "渠道", "当前状态","最新待办",
-            "最近更新时间", "最近推进时间", "距上次推进_天", "是否完成"
-        ]].copy()
+        # ---------------- 表格数据 ----------------
+        needed_cols = [
+            "Company Name", "customer_id", "销售", "渠道", "当前状态", "最新待办",
+            "最近更新时间", "最近跟进时间", "距上次推进_天", "是否完成"
+        ]
+        table = show.reindex(columns=needed_cols).copy()
 
         # 打开链接
         table.insert(0, "查看", table["customer_id"].apply(lambda x: f"?tab=progress&cid={x}"))
 
-        # 最近推进时间格式化（避免 tz-naive）
         def _fmt_dt_safe(t):
             try:
                 import pandas as pd
@@ -742,14 +740,11 @@ if nav == "view":
             tt = _as_tz_aware(t)
             return tt.strftime("%Y-%m-%d %H:%M:%S") if tt else "（无）"
 
-        table["最近推进时间_显示"] = table["最近推进时间"].apply(
-            lambda t: _fmt_dt_safe(t)  # 你前面第(3)步补过的安全格式化函数
-        )
-        
-        # 彩色徽标（沉睡不显示）
+        table["最近跟进时间_显示"] = table["最近跟进时间"].apply(_fmt_dt_safe)
+
         def color_badge(days, status):
             if status == SLEEPING_STATUS:
-                return ""  # 沉睡不预警
+                return ""
             if days is None or days == "":
                 return ""
             try:
@@ -766,13 +761,12 @@ if nav == "view":
         table["距上次推进_天_显示"] = table.apply(
             lambda r: color_badge(r.get("距上次推进_天"), r.get("当前状态")), axis=1
         )
-        # 默认按“距上次推进_天”降序排列（沉睡或空值在最后）
+
         table = table.sort_values("距上次推进_天", ascending=False, na_position="last").reset_index(drop=True)
 
-        # 展示列：显示“红点+数字”的文本列 & 保留原始数字列以便排序/筛选
         display_cols = [
-            "查看", "Company Name",  "销售", "渠道", "当前状态",
-            "最近推进时间_显示", "距上次推进_天_显示", "最新待办",
+            "查看", "Company Name", "销售", "渠道", "当前状态",
+            "最近跟进时间_显示", "距上次推进_天_显示", "最新待办",
         ]
 
         st.data_editor(
@@ -784,11 +778,14 @@ if nav == "view":
             hide_index=True,
             column_config={
                 "查看": st.column_config.LinkColumn("查看", display_text="打开"),
-                "最近推进时间_显示": st.column_config.TextColumn("最近推进时间"),
-                "距上次推进_天": st.column_config.NumberColumn("距上次推进_天（数值）", help="与今天相差天数（可排序/筛选；沉睡客户为空）"),
-                "距上次推进_天_显示": st.column_config.TextColumn("距上次推进_天", help="红点为视觉提醒（沉睡客户不显示）"),
+                "最近跟进时间_显示": st.column_config.TextColumn("最近跟进时间"),
+                "距上次推进_天": st.column_config.NumberColumn("距上次推进_天（数值）", help="最近备注/推进距今天数"),
+                "距上次推进_天_显示": st.column_config.TextColumn("距上次推进_天", help="🟢≤6天，🟠7–15天，🔴>15天"),
             },
-            disabled=["查看","Company Name","customer_id","销售","渠道","当前状态","最近更新时间","最近推进时间_显示","距上次推进_天","距上次推进_天_显示","是否完成"],
+            disabled=[
+                "查看","Company Name","customer_id","销售","渠道","当前状态",
+                "最近更新时间","最近跟进时间_显示","距上次推进_天","距上次推进_天_显示","是否完成"
+            ],
         )
 
 # ======================= 页面：➕ 添加客户 =======================
